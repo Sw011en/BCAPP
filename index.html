@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бильярдный счетчик</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2c3e50;
+        }
+        .pool-table {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background-color: #2ecc71;
+            border: 20px solid #8b4513;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .pocket {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: #000;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        /* Угловые лузы */
+        .pocket.top-left {
+            top: -20px;
+            left: -20px;
+        }
+        .pocket.top-right {
+            top: -20px;
+            right: -20px;
+        }
+        .pocket.bottom-left {
+            bottom: -20px;
+            left: -20px;
+        }
+        .pocket.bottom-right {
+            bottom: -20px;
+            right: -20px;
+        }
+        /* Центральные лузы */
+        .pocket.top-center {
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .pocket.bottom-center {
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .menu {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .menu button {
+            display: block;
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .controls button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .stats {
+            margin-top: 20px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .stats h2 {
+            margin: 0 0 10px;
+        }
+        .stats table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats th, .stats td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="pool-table">
+        <!-- Лузы -->
+        <div class="pocket top-left" onclick="showMenu(event)" data-pocket="угол"></div>
+        <div class="pocket top-center" onclick="showMenu(event)" data-pocket="центр"></div>
+        <div class="pocket top-right" onclick="showMenu(event)" data-pocket="угол"></div>
+        <div class="pocket bottom-left" onclick="showMenu(event)" data-pocket="угол"></div>
+        <div class="pocket bottom-center" onclick="showMenu(event)" data-pocket="центр"></div>
+        <div class="pocket bottom-right" onclick="showMenu(event)" data-pocket="угол"></div>
+
+        <!-- Меню выбора типа шара -->
+        <div id="menu" class="menu">
+            <button onclick="addBall('свой')">Свой</button>
+            <button onclick="addBall('чужой')">Чужой</button>
+            <button onclick="addBall('случайный')">Случайный</button>
+        </div>
+    </div>
+
+    <!-- Управление и текущая статистика -->
+    <div class="controls">
+        <button onclick="switchPlayer()">Переход хода</button>
+        <button onclick="toggleStats()">Статистика</button>
+    </div>
+
+    <div class="stats">
+        <h2>Текущая партия</h2>
+        <p>Сейчас ходит: <span id="current-player"></span></p>
+        <p>Игрок 1: <span id="player1-balls">0</span> шаров</p>
+        <p>Игрок 2: <span id="player2-balls">0</span> шаров</p>
+        <p>Общий счет: Игрок 1 - <span id="player1-wins">0</span> : Игрок 2 - <span id="player2-wins">0</span></p>
+    </div>
+
+    <!-- Общая статистика -->
+    <div id="global-stats" class="stats hidden">
+        <h2>Общая статистика</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Игрок</th>
+                    <th>Тип шара</th>
+                    <th>Луза</th>
+                    <th>Количество</th>
+                </tr>
+            </thead>
+            <tbody id="global-stats-body">
+                <!-- Сюда будет добавляться статистика -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let currentPlayer = 1; // Текущий игрок (1 или 2)
+        let stats = {
+            player1: { balls: 0, wins: 0 },
+            player2: { balls: 0, wins: 0 }
+        };
+        let globalStats = {
+            player1: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0 },
+            player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0 }
+        };
+        let activePocket = null;
+
+        // Показываем меню при нажатии на лузу
+        function showMenu(event) {
+            event.stopPropagation();
+            const pocket = event.target;
+
+            // Получаем координаты лузы относительно стола
+            const pocketRect = pocket.getBoundingClientRect();
+            const tableRect = document.querySelector('.pool-table').getBoundingClientRect();
+
+            // Позиционируем меню по правому краю лузы
+            const menu = document.getElementById('menu');
+            menu.style.left = `${pocketRect.right - tableRect.left}px`;
+            menu.style.top = `${pocketRect.top - tableRect.top}px`;
+            menu.style.display = 'block';
+
+            activePocket = pocket;
+        }
+
+        // Добавляем шар
+        function addBall(type) {
+            const pocketType = activePocket.getAttribute('data-pocket'); // "угол" или "центр"
+            const key = `${type} ${pocketType}`; // Например, "свой угол"
+
+            // Обновляем глобальную статистику
+            globalStats[`player${currentPlayer}`][key]++;
+            updateGlobalStats();
+
+            // Обновляем текущую статистику
+            stats[`player${currentPlayer}`].balls++;
+            updateCurrentStats();
+
+            // Проверяем, достиг ли игрок 8 шаров
+            if (stats[`player${currentPlayer}`].balls >= 8) {
+                stats[`player${currentPlayer}`].wins++;
+                alert(`Игрок ${currentPlayer} побеждает в партии!`);
+                resetGame();
+            }
+
+            // Скрываем меню
+            document.getElementById('menu').style.display = 'none';
+        }
+
+        // Переход хода
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateCurrentStats();
+        }
+
+        // Сброс игры
+        function resetGame() {
+            stats.player1.balls = 0;
+            stats.player2.balls = 0;
+            updateCurrentStats();
+        }
+
+        // Обновляем текущую статистику
+        function updateCurrentStats() {
+            document.getElementById('current-player').textContent = currentPlayer;
+            document.getElementById('player1-balls').textContent = stats.player1.balls;
+            document.getElementById('player2-balls').textContent = stats.player2.balls;
+            document.getElementById('player1-wins').textContent = stats.player1.wins;
+            document.getElementById('player2-wins').textContent = stats.player2.wins;
+        }
+
+        // Обновляем общую статистику
+        function updateGlobalStats() {
+            const tbody = document.getElementById('global-stats-body');
+            tbody.innerHTML = '';
+
+            for (const player of ['player1', 'player2']) {
+                for (const key in globalStats[player]) {
+                    const [type, pocket] = key.split(' ');
+                    const count = globalStats[player][key];
+                    if (count > 0) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${player}</td>
+                            <td>${type}</td>
+                            <td>${pocket}</td>
+                            <td>${count}</td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+                }
+            }
+        }
+
+        // Показываем/скрываем общую статистику
+        function toggleStats() {
+            const globalStatsDiv = document.getElementById('global-stats');
+            globalStatsDiv.classList.toggle('hidden');
+        }
+
+        // Инициализация
+        updateCurrentStats();
+    </script>
+</body>
+</html>
