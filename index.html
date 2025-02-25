@@ -88,6 +88,17 @@
             font-size: 16px;
             cursor: pointer;
         }
+        .current-stats {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
         .stats {
             margin-top: 20px;
             background-color: rgba(255, 255, 255, 0.8);
@@ -127,21 +138,24 @@
             <button onclick="addBall('свой')">Свой</button>
             <button onclick="addBall('чужой')">Чужой</button>
             <button onclick="addBall('случайный')">Случайный</button>
+            <button onclick="hideMenu()">Отмена</button>
+        </div>
+
+        <!-- Статистика текущей партии -->
+        <div class="current-stats">
+            <h2>Текущая партия</h2>
+            <p>Сейчас ходит: <span id="current-player"></span></p>
+            <p><span id="player1-name"></span>: <span id="player1-balls">0</span> шаров</p>
+            <p><span id="player2-name"></span>: <span id="player2-balls">0</span> шаров</p>
+            <p>Общий счет: <span id="player1-wins">0</span> : <span id="player2-wins">0</span></p>
         </div>
     </div>
 
-    <!-- Управление и текущая статистика -->
+    <!-- Управление -->
     <div class="controls">
         <button onclick="switchPlayer()">Переход хода</button>
+        <button onclick="undoLastAction()">Отменить последний шар</button>
         <button onclick="toggleStats()">Статистика</button>
-    </div>
-
-    <div class="stats">
-        <h2>Текущая партия</h2>
-        <p>Сейчас ходит: <span id="current-player"></span></p>
-        <p>Игрок 1: <span id="player1-balls">0</span> шаров</p>
-        <p>Игрок 2: <span id="player2-balls">0</span> шаров</p>
-        <p>Общий счет: Игрок 1 - <span id="player1-wins">0</span> : Игрок 2 - <span id="player2-wins">0</span></p>
     </div>
 
     <!-- Общая статистика -->
@@ -163,6 +177,7 @@
     </div>
 
     <script>
+        let player1Name, player2Name;
         let currentPlayer = 1; // Текущий игрок (1 или 2)
         let stats = {
             player1: { balls: 0, wins: 0 },
@@ -173,11 +188,26 @@
             player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0 }
         };
         let activePocket = null;
+        let lastAction = null; // Последнее действие для отмены
+
+        // Запрашиваем имена игроков при загрузке страницы
+        function askPlayerNames() {
+            player1Name = prompt("Введите имя первого игрока:") || "Игрок 1";
+            player2Name = prompt("Введите имя второго игрока:") || "Игрок 2";
+            document.getElementById('player1-name').textContent = player1Name;
+            document.getElementById('player2-name').textContent = player2Name;
+        }
 
         // Показываем меню при нажатии на лузу
         function showMenu(event) {
             event.stopPropagation();
             const pocket = event.target;
+
+            // Если меню уже открыто на этой лузе, скрываем его
+            if (activePocket === pocket && document.getElementById('menu').style.display === 'block') {
+                hideMenu();
+                return;
+            }
 
             // Получаем координаты лузы относительно стола
             const pocketRect = pocket.getBoundingClientRect();
@@ -192,10 +222,19 @@
             activePocket = pocket;
         }
 
+        // Скрываем меню
+        function hideMenu() {
+            document.getElementById('menu').style.display = 'none';
+            activePocket = null;
+        }
+
         // Добавляем шар
         function addBall(type) {
             const pocketType = activePocket.getAttribute('data-pocket'); // "угол" или "центр"
             const key = `${type} ${pocketType}`; // Например, "свой угол"
+
+            // Сохраняем последнее действие для отмены
+            lastAction = { player: currentPlayer, key };
 
             // Обновляем глобальную статистику
             globalStats[`player${currentPlayer}`][key]++;
@@ -208,12 +247,29 @@
             // Проверяем, достиг ли игрок 8 шаров
             if (stats[`player${currentPlayer}`].balls >= 8) {
                 stats[`player${currentPlayer}`].wins++;
-                alert(`Игрок ${currentPlayer} побеждает в партии!`);
+                alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
                 resetGame();
             }
 
             // Скрываем меню
-            document.getElementById('menu').style.display = 'none';
+            hideMenu();
+        }
+
+        // Отменяем последний выбор шара
+        function undoLastAction() {
+            if (!lastAction) return; // Если нет последнего действия, ничего не делаем
+
+            const { player, key } = lastAction;
+
+            // Отменяем последнее действие
+            if (globalStats[`player${player}`][key] > 0) {
+                globalStats[`player${player}`][key]--;
+                stats[`player${player}`].balls--;
+                updateGlobalStats();
+                updateCurrentStats();
+            }
+
+            lastAction = null; // Сбрасываем последнее действие
         }
 
         // Переход хода
@@ -231,7 +287,7 @@
 
         // Обновляем текущую статистику
         function updateCurrentStats() {
-            document.getElementById('current-player').textContent = currentPlayer;
+            document.getElementById('current-player').textContent = currentPlayer === 1 ? player1Name : player2Name;
             document.getElementById('player1-balls').textContent = stats.player1.balls;
             document.getElementById('player2-balls').textContent = stats.player2.balls;
             document.getElementById('player1-wins').textContent = stats.player1.wins;
@@ -250,7 +306,7 @@
                     if (count > 0) {
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td>${player}</td>
+                            <td>${player === 'player1' ? player1Name : player2Name}</td>
                             <td>${type}</td>
                             <td>${pocket}</td>
                             <td>${count}</td>
@@ -268,6 +324,7 @@
         }
 
         // Инициализация
+        askPlayerNames();
         updateCurrentStats();
     </script>
 </body>
