@@ -138,6 +138,8 @@
             <button onclick="addBall('свой')">Свой</button>
             <button onclick="addBall('чужой')">Чужой</button>
             <button onclick="addBall('случайный')">Случайный</button>
+            <button onclick="addBall('с разбоя')">С разбоя</button>
+            <button onclick="addBall('с подставы')">С подставы</button>
             <button onclick="hideMenu()">Отмена</button>
         </div>
 
@@ -155,6 +157,7 @@
     <div class="controls">
         <button onclick="switchPlayer()">Переход хода</button>
         <button onclick="undoLastAction()">Отменить последний шар</button>
+        <button onclick="addPenalty()">Штраф</button>
         <button onclick="toggleStats()">Статистика</button>
     </div>
 
@@ -174,18 +177,21 @@
                 <!-- Сюда будет добавляться статистика -->
             </tbody>
         </table>
+        <h3>Самая длинная серия</h3>
+        <p><span id="player1-name-longest"></span>: <span id="player1-longest-series">0</span></p>
+        <p><span id="player2-name-longest"></span>: <span id="player2-longest-series">0</span></p>
     </div>
 
     <script>
         let player1Name, player2Name;
         let currentPlayer = 1; // Текущий игрок (1 или 2)
         let stats = {
-            player1: { balls: 0, wins: 0 },
-            player2: { balls: 0, wins: 0 }
+            player1: { balls: 0, wins: 0, currentSeries: 0, longestSeries: 0 },
+            player2: { balls: 0, wins: 0, currentSeries: 0, longestSeries: 0 }
         };
         let globalStats = {
-            player1: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0 },
-            player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0 }
+            player1: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'с разбоя': 0, 'с подставы': 0, 'штрафной': 0 },
+            player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'с разбоя': 0, 'с подставы': 0, 'штрафной': 0 }
         };
         let activePocket = null;
         let lastAction = null; // Последнее действие для отмены
@@ -196,6 +202,8 @@
             player2Name = prompt("Введите имя второго игрока:") || "Игрок 2";
             document.getElementById('player1-name').textContent = player1Name;
             document.getElementById('player2-name').textContent = player2Name;
+            document.getElementById('player1-name-longest').textContent = player1Name;
+            document.getElementById('player2-name-longest').textContent = player2Name;
         }
 
         // Показываем меню при нажатии на лузу
@@ -230,8 +238,8 @@
 
         // Добавляем шар
         function addBall(type) {
-            const pocketType = activePocket.getAttribute('data-pocket'); // "угол" или "центр"
-            const key = `${type} ${pocketType}`; // Например, "свой угол"
+            const pocketType = activePocket ? activePocket.getAttribute('data-pocket') : null; // "угол" или "центр"
+            const key = pocketType ? `${type} ${pocketType}` : type; // Например, "свой угол" или "с разбоя"
 
             // Сохраняем последнее действие для отмены
             lastAction = { player: currentPlayer, key };
@@ -242,7 +250,7 @@
 
             // Обновляем текущую статистику
             stats[`player${currentPlayer}`].balls++;
-            updateCurrentStats();
+            stats[`player${currentPlayer}`].currentSeries++;
 
             // Проверяем, достиг ли игрок 8 шаров
             if (stats[`player${currentPlayer}`].balls >= 8) {
@@ -251,8 +259,30 @@
                 resetGame();
             }
 
+            // Обновляем самую длинную серию
+            if (stats[`player${currentPlayer}`].currentSeries > stats[`player${currentPlayer}`].longestSeries) {
+                stats[`player${currentPlayer}`].longestSeries = stats[`player${currentPlayer}`].currentSeries;
+                updateLongestSeries();
+            }
+
+            // Обновляем отображение текущей статистики
+            updateCurrentStats();
+
             // Скрываем меню
             hideMenu();
+        }
+
+        // Добавляем штраф
+        function addPenalty() {
+            // Начисляем шар сопернику
+            const opponent = currentPlayer === 1 ? 2 : 1;
+            stats[`player${opponent}`].balls++;
+            globalStats[`player${opponent}`]['штрафной']++; // Учитываем штраф в общей статистике
+            updateGlobalStats();
+            updateCurrentStats();
+
+            // Переход хода
+            switchPlayer();
         }
 
         // Отменяем последний выбор шара
@@ -274,6 +304,8 @@
 
         // Переход хода
         function switchPlayer() {
+            // Сбрасываем текущую серию при переходе хода
+            stats[`player${currentPlayer}`].currentSeries = 0;
             currentPlayer = currentPlayer === 1 ? 2 : 1;
             updateCurrentStats();
         }
@@ -282,6 +314,8 @@
         function resetGame() {
             stats.player1.balls = 0;
             stats.player2.balls = 0;
+            stats.player1.currentSeries = 0;
+            stats.player2.currentSeries = 0;
             updateCurrentStats();
         }
 
@@ -308,13 +342,19 @@
                         row.innerHTML = `
                             <td>${player === 'player1' ? player1Name : player2Name}</td>
                             <td>${type}</td>
-                            <td>${pocket}</td>
+                            <td>${pocket || '-'}</td>
                             <td>${count}</td>
                         `;
                         tbody.appendChild(row);
                     }
                 }
             }
+        }
+
+        // Обновляем самую длинную серию
+        function updateLongestSeries() {
+            document.getElementById('player1-longest-series').textContent = stats.player1.longestSeries;
+            document.getElementById('player2-longest-series').textContent = stats.player2.longestSeries;
         }
 
         // Показываем/скрываем общую статистику
@@ -326,6 +366,7 @@
         // Инициализация
         askPlayerNames();
         updateCurrentStats();
+        updateLongestSeries();
     </script>
 </body>
 </html>
