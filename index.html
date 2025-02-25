@@ -121,6 +121,11 @@
         .hidden {
             display: none;
         }
+        .footer {
+            position:relative;
+            top: 90%;
+            left: 0%;
+        }
     </style>
 </head>
 <body>
@@ -138,9 +143,9 @@
             <button onclick="addBall('свой')">Свой</button>
             <button onclick="addBall('чужой')">Чужой</button>
             <button onclick="addBall('случайный')">Случайный</button>
-            <button onclick="addBall('с разбоя')">С разбоя</button>
-            <button onclick="addBall('с подставы')">С подставы</button>
-            <button onclick="hideMenu()">Отмена</button>
+            <button onclick="addBall('При разбое')">При разбое</button>
+            <button onclick="addBall('Подстава')">Подстава</button>
+            <!-- <button onclick="hideMenu()">Отмена</button> -->
         </div>
 
         <!-- Статистика текущей партии -->
@@ -190,11 +195,20 @@
             player2: { balls: 0, wins: 0, currentSeries: 0, longestSeries: 0 }
         };
         let globalStats = {
-            player1: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'с разбоя': 0, 'с подставы': 0, 'штрафной': 0 },
-            player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'с разбоя': 0, 'с подставы': 0, 'штрафной': 0 }
+            player1: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'При разбое': 0, 'Подстава': 0, 'штрафной': 0 },
+            player2: { 'свой угол': 0, 'свой центр': 0, 'чужой угол': 0, 'чужой центр': 0, 'случайный угол': 0, 'случайный центр': 0, 'При разбое': 0, 'Подстава': 0, 'штрафной': 0 }
         };
         let activePocket = null;
         let lastAction = null; // Последнее действие для отмены
+        
+        // Сброс игры
+        function resetGame() {
+            stats.player1.balls = 0;
+            stats.player2.balls = 0;
+            stats.player1.currentSeries = 0;
+            stats.player2.currentSeries = 0;
+            updateCurrentStats();
+        }
 
         // Запрашиваем имена игроков при загрузке страницы
         function askPlayerNames() {
@@ -236,6 +250,26 @@
             activePocket = null;
         }
 
+             // Добавляем штраф
+             function addPenalty() {
+            // Начисляем шар сопернику
+            const opponent = currentPlayer === 1 ? 2 : 1;
+            stats[`player${opponent}`].balls++;
+            globalStats[`player${opponent}`]['штрафной']++; // Учитываем штраф в общей статистике
+            updateGlobalStats();
+            updateCurrentStats();
+
+            // Переход хода
+            switchPlayer();
+
+             // Проверяем, достиг ли игрок 8 шаров
+             if (stats[`player${currentPlayer}`].balls >= 8) {
+                stats[`player${currentPlayer}`].wins++;
+                alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
+                resetGame();
+            }
+        }
+        
         // Добавляем шар
         function addBall(type) {
             const pocketType = activePocket ? activePocket.getAttribute('data-pocket') : null; // "угол" или "центр"
@@ -272,19 +306,6 @@
             hideMenu();
         }
 
-        // Добавляем штраф
-        function addPenalty() {
-            // Начисляем шар сопернику
-            const opponent = currentPlayer === 1 ? 2 : 1;
-            stats[`player${opponent}`].balls++;
-            globalStats[`player${opponent}`]['штрафной']++; // Учитываем штраф в общей статистике
-            updateGlobalStats();
-            updateCurrentStats();
-
-            // Переход хода
-            switchPlayer();
-        }
-
         // Отменяем последний выбор шара
         function undoLastAction() {
             if (!lastAction) return; // Если нет последнего действия, ничего не делаем
@@ -307,15 +328,6 @@
             // Сбрасываем текущую серию при переходе хода
             stats[`player${currentPlayer}`].currentSeries = 0;
             currentPlayer = currentPlayer === 1 ? 2 : 1;
-            updateCurrentStats();
-        }
-
-        // Сброс игры
-        function resetGame() {
-            stats.player1.balls = 0;
-            stats.player2.balls = 0;
-            stats.player1.currentSeries = 0;
-            stats.player2.currentSeries = 0;
             updateCurrentStats();
         }
 
@@ -369,4 +381,9 @@
         updateLongestSeries();
     </script>
 </body>
+<footer>
+    <div class="footer">
+Сделано в Иркутске
+    </div>
+</footer>
 </html>
