@@ -36,7 +36,6 @@
             border-radius: 50%;
             cursor: pointer;
         }
-        /* Угловые лузы */
         .pocket.top-left {
             top: -20px;
             left: -20px;
@@ -53,7 +52,6 @@
             bottom: -20px;
             right: -20px;
         }
-        /* Центральные лузы */
         .pocket.top-center {
             top: -20px;
             left: 50%;
@@ -131,12 +129,22 @@
             align-items: center;
             text-align: center;
             color: beige;
-            /* box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); */
+        }
+        .timer {
+            position: absolute;
+            top: 30px;
+            right: 46%;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <div class="pool-table">
+        <div class="timer" id="timer">00:00</div>
         <!-- Лузы -->
         <div class="pocket top-left" onclick="showMenu(event)" data-pocket="угол"></div>
         <div class="pocket top-center" onclick="showMenu(event)" data-pocket="центр"></div>
@@ -206,12 +214,16 @@
         };
         let activePocket = null;
         let lastAction = null;
-        
+        let timerInterval;
+        let totalTime = 0;
+
         function resetGame() {
             stats.player1.balls = 0;
             stats.player2.balls = 0;
             stats.player1.currentSeries = 0;
             stats.player2.currentSeries = 0;
+            totalTime = 0;
+            updateTimer();
             updateCurrentStats();
         }
 
@@ -273,7 +285,7 @@
             if (globalStats[`player${currentPlayer}`][key] !== undefined) {
                 globalStats[`player${currentPlayer}`][key]++;
             }
-            
+
             updateGlobalStats();
 
             stats[`player${currentPlayer}`].balls++;
@@ -355,20 +367,34 @@
             globalStatsDiv.classList.toggle('hidden');
         }
 
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                totalTime++;
+                updateTimer();
+            }, 1000);
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(totalTime / 60);
+            const seconds = totalTime % 60;
+            document.getElementById('timer').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
         askPlayerNames();
         updateCurrentStats();
         updateLongestSeries();
+        startTimer(); // Запускаем таймер при загрузке страницы
     </script>
 </body>
 <footer>
     <div class="footer">
-<tr>Made by Sw011en</tr>
-<br><div class="footer-pic">
-    <br>
-    <a href="https://github.com/Sw011en/" target="_blank">
-        <img src="https://github.com/Sw011en/BCAPP/blob/main/img/git.png?raw=true" alt="github" width="40" height="40">
-    </a>
-</div>
+        <tr>Made by Sw011en</tr>
+        <br><div class="footer-pic">
+            <br>
+            <a href="https://github.com/Sw011en/" target="_blank">
+                <img src="https://github.com/Sw011en/BCAPP/blob/main/img/git.png?raw=true" alt="github" width="40" height="40">
+            </a>
+        </div>
     </div>
 </footer>
 </html>
