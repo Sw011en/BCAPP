@@ -261,20 +261,8 @@
             activePocket = null;
         }
 
-        function addPenalty() {
-            const opponent = currentPlayer === 1 ? 2 : 1;
-            stats[`player${opponent}`].balls++;
-            globalStats[`player${opponent}`]['штрафной']++;
-            updateGlobalStats();
-            updateCurrentStats();
-
-            switchPlayer();
-
-            if (stats[`player${currentPlayer}`].balls >= 8) {
-                stats[`player${currentPlayer}`].wins++;
-                alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
-                resetGame();
-            }
+        function confirmEndGame(playerName) {
+            return confirm(`${playerName} забил восьмой шар. Завершить партию?`);
         }
 
         function addBall(type) {
@@ -292,9 +280,19 @@
             stats[`player${currentPlayer}`].currentSeries++;
 
             if (stats[`player${currentPlayer}`].balls >= 8) {
-                stats[`player${currentPlayer}`].wins++;
-                alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
-                resetGame();
+                if (confirmEndGame(currentPlayer === 1 ? player1Name : player2Name)) {
+                    stats[`player${currentPlayer}`].wins++;
+                    alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
+                    resetGame();
+                } else {
+                    // Отменяем добавление восьмого шара
+                    globalStats[`player${currentPlayer}`][key]--;
+                    stats[`player${currentPlayer}`].balls--;
+                    updateGlobalStats();
+                    updateCurrentStats();
+                    hideMenu();
+                    return;
+                }
             }
 
             if (stats[`player${currentPlayer}`].currentSeries > stats[`player${currentPlayer}`].longestSeries) {
@@ -304,6 +302,30 @@
 
             updateCurrentStats();
             hideMenu();
+        }
+
+        function addPenalty() {
+            const opponent = currentPlayer === 1 ? 2 : 1;
+            stats[`player${opponent}`].balls++;
+            globalStats[`player${opponent}`]['штрафной']++;
+            updateGlobalStats();
+            updateCurrentStats();
+
+            switchPlayer();
+
+            if (stats[`player${currentPlayer}`].balls >= 8) {
+                if (confirmEndGame(currentPlayer === 1 ? player1Name : player2Name)) {
+                    stats[`player${currentPlayer}`].wins++;
+                    alert(`${currentPlayer === 1 ? player1Name : player2Name} побеждает в партии!`);
+                    resetGame();
+                } else {
+                    // Отменяем добавление восьмого шара
+                    globalStats[`player${currentPlayer}`]['штрафной']--;
+                    stats[`player${currentPlayer}`].balls--;
+                    updateGlobalStats();
+                    updateCurrentStats();
+                }
+            }
         }
 
         function undoLastAction() {
